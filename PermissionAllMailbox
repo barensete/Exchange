@@ -1,0 +1,10 @@
+.description
+      Génère un rapport d'utilisation de base pour les espaces OneDrive for Business.
+      Le rapport contiendra les informations suivantes :
+      - Owner (UPN)
+      - CurrentUsage (GB)
+      - Quota (GB)
+      - QuotaWarning (GB)
+      - QuotaType
+      - LastModified
+      - Status
