@@ -187,11 +187,14 @@ poisson : **57 achats, 391,5 kg, 1 668 500 F**, CA théorique **1 779 167 F**.
 
 Attention : Excel ignore un montant tapé en texte (« 18000F ») ; l'app, non.
 
-Pour charger l'historique : **Plus → Importer le fichier Excel** (ou le
-bouton « Importer mon fichier Excel » du Résumé quand l'app est vide).
+Pour charger l'historique : copier le classeur en `assets/donnees/depart.xlsx`
+(ou une sauvegarde en `depart.json`) : il est chargé au premier lancement sur
+un téléphone vide (`Depot.donneesDeDepart`). Ou, sur le téléphone : **Plus →
+Importer le fichier Excel**.
 
-Ne jamais mettre les vraies données (`*.xlsx`, `fasoresto*.json`) dans Git :
-elles sont dans `.gitignore`.
+**Le dépôt GitHub est public** : ne jamais mettre les vraies données
+(`*.xlsx`, `fasoresto*.json`, `assets/donnees/depart.*`) dans Git. Elles sont
+dans `.gitignore`.
 
 ## Format de sauvegarde (JSON)
 

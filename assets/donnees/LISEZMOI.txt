@@ -1,0 +1,10 @@
+DONNÉES DE DÉPART (uniquement sur votre PC, jamais sur GitHub)
+
+Copiez ici votre classeur Excel en le renommant :
+    depart.xlsx
+ou une sauvegarde de l'application en la renommant :
+    depart.json
+
+Au premier lancement (téléphone sans données), l'application charge ce
+fichier automatiquement. Les fichiers .xlsx et .json de ce dossier sont
+ignorés par Git : ils ne partent pas sur GitHub (le dépôt est public).

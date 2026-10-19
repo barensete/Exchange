@@ -50,3 +50,5 @@ app.*.map.json
 # Classeurs et sauvegardes avec les vraies données du restaurant
 *.xlsx
 fasoresto*.json
+assets/donnees/*.json
+assets/donnees/*.xlsx

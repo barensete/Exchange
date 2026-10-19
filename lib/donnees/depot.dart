@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../calcul/comptabilite.dart';
+import '../io/import_excel.dart';
 import '../io/sauvegarde.dart';
 import '../modele/modeles.dart';
 
@@ -25,11 +27,27 @@ class Depot extends ChangeNotifier {
   static Future<Depot> ouvrir() async {
     final dossier = await getApplicationDocumentsDirectory();
     final fichier = File('${dossier.path}/fasoresto.json');
-    var donnees = const Donnees();
     if (await fichier.exists()) {
-      donnees = Sauvegarde.importer(await fichier.readAsString());
+      return Depot._(fichier, Sauvegarde.importer(await fichier.readAsString()));
     }
-    return Depot._(fichier, donnees);
+    // Premier lancement : reprend les données de départ si le projet en contient.
+    final depot = Depot._(fichier, const Donnees());
+    final depart = await donneesDeDepart(rootBundle);
+    if (depart != null) await depot.remplacerTout(depart);
+    return depot;
+  }
+
+  /// Données de départ placées dans `assets/donnees/` sur le PC du développeur :
+  /// `depart.json` (sauvegarde) ou `depart.xlsx` (classeur Excel). Null s'il n'y en a pas.
+  static Future<Donnees?> donneesDeDepart(AssetBundle bundle) async {
+    try {
+      return Sauvegarde.importer(await bundle.loadString('assets/donnees/depart.json'));
+    } catch (_) {}
+    try {
+      final octets = await bundle.load('assets/donnees/depart.xlsx');
+      return ImportExcel.lire(octets.buffer.asUint8List(octets.offsetInBytes, octets.lengthInBytes));
+    } catch (_) {}
+    return null;
   }
 
   /// Dépôt en mémoire, sans fichier (pour les tests).

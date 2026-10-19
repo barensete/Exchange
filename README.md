@@ -72,10 +72,19 @@ test/                     tests des calculs et des écrans
 
 ## Reprendre l'historique Excel
 
-Copiez le fichier `Comptabilite_faso_resto.xlsx` sur le téléphone (WhatsApp,
-Drive, câble USB), puis dans l'application : **Plus → Importer le fichier
-Excel**. Quand l'application est vide, le Résumé propose aussi un bouton
-**Importer mon fichier Excel**.
+**Méthode 1, depuis le PC (recommandée)** : copiez votre classeur dans le
+dossier `assets/donnees/` du projet et renommez-le **`depart.xlsx`**, puis
+lancez l'application (F5). Au premier lancement sur le téléphone, toutes les
+données sont chargées automatiquement. Ce fichier reste sur votre PC : Git
+l'ignore, il ne part jamais sur GitHub.
+
+Si l'application contenait déjà des données sur le téléphone, désinstallez-la
+d'abord (ou utilisez la méthode 2), car les données de départ ne sont lues que
+sur un téléphone vide.
+
+**Méthode 2, sur le téléphone** : copiez le fichier `.xlsx` sur le téléphone
+(WhatsApp, Drive, câble USB), puis dans l'application : **Plus → Importer le
+fichier Excel**.
 
 Tout est repris : recettes, dépenses, impayés, remboursements, loyer et
 salaires, menu et prix de vente, employés et pointage, hypothèses de
