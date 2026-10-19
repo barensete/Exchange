@@ -22,6 +22,9 @@ les mêmes chiffres que lui.
 
 ## Commandes
 
+Version minimale : **Flutter 3.38** (Dart 3.10), imposée par file_picker,
+share_plus et path_provider. La CI teste avec Flutter 3.38.1.
+
 ```bash
 flutter pub get            # dépendances
 flutter run                # lancer sur le téléphone ou l'émulateur (F5 dans VS Code)

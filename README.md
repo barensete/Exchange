@@ -27,6 +27,8 @@ décrites dans [docs/CONCEPTION.md](docs/CONCEPTION.md).
 2. **Android Studio** : à installer seulement pour le SDK Android et
    l'émulateur. Ouvrez-le une fois, puis *More Actions → SDK Manager* et
    installez le SDK et les *Command-line Tools*.
+   Il faut **Flutter 3.38 ou plus récent**. Vérifiez avec `flutter --version` ;
+   si la version est plus ancienne, lancez `flutter upgrade`.
 3. Dans un terminal, lancez `flutter doctor --android-licenses` (répondez `y`),
    puis `flutter doctor`. Tout doit être vert pour Flutter et Android.
 4. **VS Code** : installez l'extension **Flutter** (Dart-Code). VS Code la
