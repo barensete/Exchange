@@ -9,6 +9,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # La version minimale acceptée et la plus récente.
+        flutter: ['3.38.1', '3.47.5']
+    name: build (Flutter ${{ matrix.flutter }})
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +26,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.38.1
+          flutter-version: ${{ matrix.flutter }}
           cache: true
 
       - run: flutter pub get
@@ -35,6 +41,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Publier l'APK
+        if: matrix.flutter == '3.47.5'
         uses: actions/upload-artifact@v4
         with:
           name: FasoResto-apk
