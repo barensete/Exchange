@@ -101,4 +101,56 @@ void main() {
     expect(find.text('Recette par service'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('menu, personnel et analyse viande', (tester) async {
+    final depot = Depot.enMemoire(
+      Donnees(
+        journees: [Journee(date: DateTime(2026, 9, 1), matin: 50000)],
+        depenses: [
+          Depense(
+            id: 1,
+            date: DateTime(2026, 9, 1),
+            article: 'Viande sans os',
+            quantite: '5 kg',
+            montant: 24000,
+            payeAvec: SourcePaiement.tresorerie,
+            categorie: Categorie.achatsAlimentaires,
+          ),
+        ],
+        produits: [Produit(id: 2, rubrique: 'Dîner', nom: 'Brochette de viande', prix: 500)],
+        employes: [Employe(id: 3, nom: 'Zineb', salaireMensuel: 50000)],
+      ),
+    );
+    await tester.pumpWidget(FasoRestoApp(depot: depot));
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Menu & prix de vente'));
+    await tester.pumpAndSettle();
+    expect(find.text('Brochette de viande'), findsOneWidget);
+    expect(find.textContaining('coût max 150 F'), findsOneWidget);
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Personnel & salaires'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pointage du jour'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Zineb'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Enregistrer'));
+    await tester.pumpAndSettle();
+    expect(depot.donnees.employes.single.aTravaille(DateTime.now()), isTrue);
+    expect(find.textContaining('1 jour(s)'), findsOneWidget);
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Bilans'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Viande'));
+    await tester.pumpAndSettle();
+    expect(find.text('Achats par type'), findsOneWidget);
+    expect(find.textContaining('Coût moyen 4\u202F800 F/kg'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

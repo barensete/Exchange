@@ -81,6 +81,7 @@ class BilanMois {
     required this.depenses,
     required this.depensesMateriel,
     required this.versementsSalaires,
+    required this.versementsLoyer,
     required this.loyer,
     required this.salaires,
     required this.joursOuverts,
@@ -90,7 +91,7 @@ class BilanMois {
 
   /// Premier jour du mois.
   final DateTime mois;
-  final int recette, depenses, depensesMateriel, versementsSalaires, loyer, salaires;
+  final int recette, depenses, depensesMateriel, versementsSalaires, versementsLoyer, loyer, salaires;
 
   /// Nombre de journées de caisse saisies dans le mois.
   final int joursOuverts;
@@ -103,8 +104,9 @@ class BilanMois {
 
   int? get recetteMoyenneParJour => joursOuverts == 0 ? null : (recette / joursOuverts).round();
 
-  /// Recette − (dépenses sans les versements de salaire déjà saisis) − loyer − salaires.
-  int get resultatApresCharges => recette - (depenses - versementsSalaires) - loyer - salaires;
+  /// Recette − (dépenses sans les versements de salaire et de loyer déjà saisis,
+  /// pour ne pas les compter deux fois) − loyer − salaires.
+  int get resultatApresCharges => recette - (depenses - versementsSalaires - versementsLoyer) - loyer - salaires;
   int get resultatHorsMateriel => resultatApresCharges + depensesMateriel;
 }
 
@@ -236,6 +238,7 @@ class Comptabilite {
       depenses: _somme(deps),
       depensesMateriel: _somme(deps.where((x) => x.categorie == Categorie.materiel)),
       versementsSalaires: _somme(deps.where((x) => x.categorie == Categorie.personnel)),
+      versementsLoyer: _somme(deps.where((x) => x.categorie == Categorie.loyer)),
       loyer: actif ? d.parametres.loyerMensuel : 0,
       salaires: actif ? d.parametres.salairesMensuels : 0,
       joursOuverts: jours.length,

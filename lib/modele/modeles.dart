@@ -50,7 +50,8 @@ enum Categorie {
   chargesDiverses('Charges diverses'),
   personnel('Personnel / Salaires'),
   petitesDepenses('Petites dépenses / non identifiées'),
-  entretien("Produit d'entretien");
+  entretien("Produits d'entretien"),
+  loyer('Loyer');
 
   const Categorie(this.libelle);
   final String libelle;
@@ -61,10 +62,11 @@ enum Categorie {
     for (final c in values) {
       if (c.libelle.toLowerCase() == t) return c;
     }
-    // Tolère les variantes du classeur (« non identifiée », « Produit d'entretiens »).
+    // Tolère singulier / pluriel (« non identifiée », « Produit d'entretiens »…).
+    String sansPluriel(String x) =>
+        x.split(' ').map((m) => m.endsWith('s') ? m.substring(0, m.length - 1) : m).join(' ');
     for (final c in values) {
-      final l = c.libelle.toLowerCase();
-      if (t.startsWith(l.substring(0, l.length - 1))) return c;
+      if (sansPluriel(c.libelle.toLowerCase()) == sansPluriel(t)) return c;
     }
     return null;
   }
@@ -300,6 +302,96 @@ class Parametres {
   final int salairesMensuels;
 }
 
+/// Un plat ou une boisson du menu (onglet « Prix de vente » du classeur).
+class Produit {
+  Produit({
+    required this.id,
+    required this.rubrique,
+    required this.nom,
+    this.prix,
+    this.coutMatiere,
+    this.ingredient = '',
+    this.remarque = '',
+  });
+
+  final int id;
+
+  /// Petit déjeuner, Déjeuner, Dîner, Autres…
+  final String rubrique;
+  final String nom;
+
+  /// Prix de vente ; null si pas encore fixé.
+  final int? prix;
+
+  /// Ce que coûte la matière d'une portion ; null si pas encore estimé.
+  final int? coutMatiere;
+
+  /// Ingrédient principal (nom d'un [Ingredient]), vide si aucun.
+  final String ingredient;
+  final String remarque;
+
+  Produit copier({
+    int? id,
+    String? rubrique,
+    String? nom,
+    int? Function()? prix,
+    int? Function()? coutMatiere,
+    String? ingredient,
+    String? remarque,
+  }) => Produit(
+    id: id ?? this.id,
+    rubrique: rubrique ?? this.rubrique,
+    nom: nom ?? this.nom,
+    prix: prix != null ? prix() : this.prix,
+    coutMatiere: coutMatiere != null ? coutMatiere() : this.coutMatiere,
+    ingredient: ingredient ?? this.ingredient,
+    remarque: remarque ?? this.remarque,
+  );
+}
+
+/// Prix d'achat de référence d'un ingrédient (F par kg).
+class Ingredient {
+  const Ingredient({required this.nom, required this.prixKg});
+  final String nom;
+  final int prixKg;
+}
+
+/// Employé : salaire convenu et jours travaillés (pointage).
+class Employe {
+  Employe({required this.id, required this.nom, this.poste = '', this.salaireMensuel, this.jours = const []});
+
+  final int id;
+  final String nom;
+  final String poste;
+
+  /// Salaire mensuel convenu ; null si pas fixé (renfort, extra…).
+  final int? salaireMensuel;
+
+  /// Jours où la personne a travaillé.
+  final List<DateTime> jours;
+
+  bool aTravaille(DateTime date) => jours.any((j) => memeJour(j, date));
+
+  Employe copier({int? id, String? nom, String? poste, int? Function()? salaireMensuel, List<DateTime>? jours}) =>
+      Employe(
+        id: id ?? this.id,
+        nom: nom ?? this.nom,
+        poste: poste ?? this.poste,
+        salaireMensuel: salaireMensuel != null ? salaireMensuel() : this.salaireMensuel,
+        jours: jours ?? this.jours,
+      );
+}
+
+/// Hypothèses de rentabilité pour un type de viande ou de poisson
+/// (section 2 de l'analyse viande du classeur).
+class HypotheseViande {
+  const HypotheseViande({this.prixMorceau, this.morceauxParKg});
+
+  /// Prix de vente d'un morceau (ex. 100 F ; 83,33 F pour le foie à 250 F les 3).
+  final double? prixMorceau;
+  final double? morceauxParKg;
+}
+
 /// Toutes les données du restaurant.
 class Donnees {
   const Donnees({
@@ -308,6 +400,10 @@ class Donnees {
     this.impayes = const [],
     this.remboursements = const [],
     this.parametres = const Parametres(),
+    this.produits = const [],
+    this.ingredients = const [],
+    this.employes = const [],
+    this.hypothesesViande = const {},
   });
 
   final List<Journee> journees;
@@ -315,6 +411,12 @@ class Donnees {
   final List<Impaye> impayes;
   final List<Remboursement> remboursements;
   final Parametres parametres;
+  final List<Produit> produits;
+  final List<Ingredient> ingredients;
+  final List<Employe> employes;
+
+  /// Par type de viande (« Viande sans os », « Foie »…).
+  final Map<String, HypotheseViande> hypothesesViande;
 
   Donnees copier({
     List<Journee>? journees,
@@ -322,18 +424,32 @@ class Donnees {
     List<Impaye>? impayes,
     List<Remboursement>? remboursements,
     Parametres? parametres,
+    List<Produit>? produits,
+    List<Ingredient>? ingredients,
+    List<Employe>? employes,
+    Map<String, HypotheseViande>? hypothesesViande,
   }) => Donnees(
     journees: journees ?? this.journees,
     depenses: depenses ?? this.depenses,
     impayes: impayes ?? this.impayes,
     remboursements: remboursements ?? this.remboursements,
     parametres: parametres ?? this.parametres,
+    produits: produits ?? this.produits,
+    ingredients: ingredients ?? this.ingredients,
+    employes: employes ?? this.employes,
+    hypothesesViande: hypothesesViande ?? this.hypothesesViande,
   );
 
   /// Prochain identifiant libre pour une nouvelle ligne.
   int get prochainId {
     var max = 0;
-    for (final x in [...depenses.map((e) => e.id), ...impayes.map((e) => e.id), ...remboursements.map((e) => e.id)]) {
+    for (final x in [
+      ...depenses.map((e) => e.id),
+      ...impayes.map((e) => e.id),
+      ...remboursements.map((e) => e.id),
+      ...produits.map((e) => e.id),
+      ...employes.map((e) => e.id),
+    ]) {
       if (x > max) max = x;
     }
     return max + 1;

@@ -111,6 +111,59 @@ class Depot extends ChangeNotifier {
   Future<void> supprimerRemboursement(Remboursement r) =>
       _modifier(_donnees.copier(remboursements: _donnees.remboursements.where((x) => x.id != r.id).toList()));
 
+  // ------------------------------------------------------------ Menu
+
+  Future<void> enregistrerProduit(Produit p) {
+    final avecId = p.id == 0 ? p.copier(id: _donnees.prochainId) : p;
+    return _modifier(_donnees.copier(produits: _remplacer(_donnees.produits, avecId, (x) => x.id)));
+  }
+
+  Future<void> supprimerProduit(Produit p) =>
+      _modifier(_donnees.copier(produits: _donnees.produits.where((x) => x.id != p.id).toList()));
+
+  /// Ajoute ou met à jour le prix au kg d'un ingrédient (même nom = même ingrédient).
+  Future<void> enregistrerIngredient(Ingredient i, {String? ancienNom}) {
+    final cle = (ancienNom ?? i.nom).toLowerCase();
+    final liste = [..._donnees.ingredients];
+    final idx = liste.indexWhere((x) => x.nom.toLowerCase() == cle);
+    if (idx < 0) {
+      liste.add(i);
+    } else {
+      liste[idx] = i;
+    }
+    return _modifier(_donnees.copier(ingredients: liste));
+  }
+
+  Future<void> supprimerIngredient(Ingredient i) =>
+      _modifier(_donnees.copier(ingredients: _donnees.ingredients.where((x) => x.nom != i.nom).toList()));
+
+  // ------------------------------------------------------------ Personnel
+
+  Future<void> enregistrerEmploye(Employe e) {
+    final avecId = e.id == 0 ? e.copier(id: _donnees.prochainId) : e;
+    return _modifier(_donnees.copier(employes: _remplacer(_donnees.employes, avecId, (x) => x.id)));
+  }
+
+  Future<void> supprimerEmploye(Employe e) =>
+      _modifier(_donnees.copier(employes: _donnees.employes.where((x) => x.id != e.id).toList()));
+
+  /// Pointage d'une journée : [presents] = identifiants des employés qui ont travaillé.
+  Future<void> pointer(DateTime date, Set<int> presents) => _modifier(
+    _donnees.copier(
+      employes: [
+        for (final e in _donnees.employes)
+          e.copier(
+            jours: [...e.jours.where((j) => !memeJour(j, date)), if (presents.contains(e.id)) jourSeul(date)]..sort(),
+          ),
+      ],
+    ),
+  );
+
+  // ------------------------------------------------------------ Analyse viande
+
+  Future<void> enregistrerHypothese(String type, HypotheseViande h) =>
+      _modifier(_donnees.copier(hypothesesViande: {..._donnees.hypothesesViande, type: h}));
+
   // ------------------------------------------------------------ Divers
 
   Future<void> enregistrerParametres(Parametres p) => _modifier(_donnees.copier(parametres: p));

@@ -11,8 +11,9 @@ Resto » et en reprend toutes les règles de calcul.
 - **Dépenses** : saisie avec suggestions d'articles et de fournisseurs,
   filtre par « payé avec », lignes incomplètes signalées.
 - **Impayés** : ventes à crédit et paiements partiels.
-- **Plus** : remboursements, bilans jour / semaine / mois, loyer et salaires,
-  sauvegarde, import et export Excel (CSV).
+- **Plus** : bilans (mois, semaines, jours, analyse viande & poisson),
+  remboursements, menu & prix de vente, personnel & salaires (pointage),
+  paramètres, sauvegarde, import du fichier Excel et export CSV.
 
 Tout fonctionne sans internet. Les données restent sur le téléphone.
 
@@ -67,7 +68,6 @@ lib/
   ui/composants.dart      champs de saisie et cartes réutilisables
   ui/ecrans/              un fichier par onglet
 test/                     tests des calculs et des écrans
-outils/excel_vers_json.py reprise de l'historique Excel
 ```
 
 ## Reprendre l'historique Excel
@@ -77,5 +77,6 @@ Drive, câble USB), puis dans l'application : **Plus → Importer le fichier
 Excel**. Quand l'application est vide, le Résumé propose aussi un bouton
 **Importer mon fichier Excel**.
 
-Sur le PC, `outils/excel_vers_json.py` produit la même chose sous forme de
-sauvegarde `.json` (Plus → Importer une sauvegarde).
+Tout est repris : recettes, dépenses, impayés, remboursements, loyer et
+salaires, menu et prix de vente, employés et pointage, hypothèses de
+l'analyse viande.

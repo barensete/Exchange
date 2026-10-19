@@ -40,10 +40,14 @@ build à chaque envoi. L'APK est publié en artefact `FasoResto-apk`.
 lib/
   main.dart                  ouvre le Depot puis lance l'app
   modele/modeles.dart        Journee, Depense, Impaye (+ Reglement), Remboursement,
+                             Produit, Ingredient, Employe, HypotheseViande,
                              Parametres, Donnees ; enums SourcePaiement, Categorie,
                              Service, Associe
-  calcul/comptabilite.dart   TOUTES les formules (Résumé, caisse du jour, bilans)
-  calcul/format.dart         enFcfa(), enTexte(date), lireMontant(), nomMois()
+  calcul/comptabilite.dart   formules du Résumé, de la caisse du jour et des bilans
+  calcul/menu.dart           coût matière en %, coût max et poids max à 30 %
+  calcul/salaires.dart       jours travaillés, versé, reste à verser par employé
+  calcul/viande.dart         analyse viande & poisson (types, kg, coût/kg, rentabilité)
+  calcul/format.dart         enFcfa(), enTexte(date), lireMontant(), nomMois(), enKg()
   io/sauvegarde.dart         Sauvegarde (JSON) et ExportCsv (Excel, séparateur « ; »)
   io/import_excel.dart       ImportExcel.lire(octets) : lit directement le classeur .xlsx
   donnees/depot.dart         Depot (ChangeNotifier) : données en mémoire + fichier JSON
@@ -57,10 +61,13 @@ lib/
     depenses.dart            onglet Dépenses + saisie d'une dépense
     impayes.dart             onglet Impayés + paiements partiels
     plus.dart                Plus : Bilans, Remboursements, Paramètres, sauvegarde/export/import
+    menu.dart                Plus → Menu & prix de vente (+ prix d'achat de référence)
+    personnel.dart           Plus → Personnel & salaires (+ pointage du jour)
+    viande.dart              Bilans → onglet Viande
 test/
   comptabilite_test.dart     tests des formules, de la sauvegarde et du CSV
-  app_test.dart              tests des écrans (saisie caisse, ajout dépense)
-outils/excel_vers_json.py    convertit le classeur Excel en sauvegarde importable
+  nouveautes_test.dart       tests du loyer, du menu, des salaires, de la viande, sauvegarde v2
+  app_test.dart              tests des écrans
 docs/CONCEPTION.md           analyse du classeur, choix techniques, suite possible
 ```
 
@@ -100,7 +107,8 @@ docs/CONCEPTION.md           analyse du classeur, choix techniques, suite possib
   deux). Les trois derniers créent une **dette** de l'entreprise.
 - Catégories : Achats alimentaires, Emballages / consommables, Gaz & charbon,
   Matériel & équipement, Transport / livraison, Charges diverses,
-  Personnel / Salaires, Petites dépenses / non identifiées, Produit d'entretien.
+  Personnel / Salaires, Petites dépenses / non identifiées, Produits d'entretien,
+  Loyer. (Singulier et pluriel sont acceptés à l'import.)
 - Une dépense est **incomplète** (en orange) s'il manque la date, le montant,
   « payé avec » ou la catégorie.
 - Une dépense a une **date suspecte** (aussi en orange, filtre « À corriger »)
@@ -127,12 +135,38 @@ docs/CONCEPTION.md           analyse du classeur, choix techniques, suite possib
   viande et % de la recette.
 - **Par semaine** (lundi → dimanche) : recette, dépenses, résultat, viande en %.
 - **Par mois** : résultat après charges = recette − (dépenses − dépenses
-  « Personnel / Salaires ») − loyer − salaires. Loyer et salaires
-  (Paramètres, par défaut 120 000 F et 150 000 F) ne comptent **que pour les
+  « Personnel / Salaires » − dépenses « Loyer ») − loyer − salaires (les
+  versements déjà saisis ne sont pas comptés deux fois). Loyer et salaires
+  (Paramètres) ne comptent **que pour les
   mois qui ont des recettes**. Résultat hors matériel = résultat après
   charges + dépenses « Matériel & équipement ». Le mois affiche aussi la
   recette moyenne par jour de caisse saisi, la recette par service et les
   dépenses par catégorie (de la plus grosse à la plus petite).
+
+### Menu (onglet « Prix de vente »)
+- Coût en % = coût matière / prix. Coût max = prix × 30 % (arrondi).
+- Poids max (g) = coût max / prix au kg de l'ingrédient principal × 1000.
+- Les prix au kg viennent de la liste « Prix d'achat de référence ».
+
+### Salaires (onglet « Salaire »)
+- Pour un mois : jours travaillés = jours pointés ; versé = dépenses
+  « Personnel / Salaires » du mois **dont l'article contient le nom** de
+  l'employé (majuscules ignorées) ; reste = salaire convenu − versé.
+- Non attribué = versements du mois − versements attribués à un employé.
+- Écart = somme des salaires convenus − salaires mensuels des Paramètres.
+
+### Analyse viande & poisson (Bilans → Viande)
+- Achats pris en compte : article contenant « viande », « foie » ou
+  « poisson », ou commençant par « poulet » ; sauf « épices » et « poisson s… ».
+- Type : foie → Foie ; commence par poulet → Poulet ; commence par poisson →
+  Poisson ; « sans os », « avec os », « hach » → viande correspondante ;
+  sinon Autre / mélange.
+- Kg : « carton » (dans l'article ou la quantité) = 10 kg × nombre (1 par
+  défaut) ; « 1/2 kg » = 0,5 ; « 5 kg » = 5 ; sinon inconnu.
+- Fréquence = (dernier achat − premier) / (nombre − 1) jours. Kg par semaine
+  = kg / nombre de semaines entre la première et la dernière journée de caisse.
+- Rentabilité théorique (si prix par morceau et morceaux/kg saisis) :
+  CA = kg × morceaux/kg × prix ; marge = CA − coût ; seuil = coût/kg ÷ prix.
 
 ### Impayés
 - Un impayé a une liste de **règlements** (date + montant). Reste dû =
@@ -142,15 +176,16 @@ docs/CONCEPTION.md           analyse du classeur, choix techniques, suite possib
 
 ## Vérification sur les vraies données
 
-Avec l'historique Excel converti (29 journées, 293 dépenses), l'app doit
-donner : total recette **1 979 675 F**, impayés à recevoir **17 400 F**,
-total dépenses **2 696 805 F**, Trésorerie **930 190 F**, dette Barka
-**525 560 F**, dette Fodié **633 900 F**, partagé **139 900 F**, argent
-disponible **582 230 F**, recette de septembre **1 794 225 F**.
+Avec le classeur « FasoGrill_Comptabilite.xlsx » (50 journées, 508 dépenses,
+21 impayés, 25 plats, 6 employés), l'app retrouve **exactement** les chiffres
+du classeur : total recette **3 556 072 F**, impayés **31 900 F**, dépenses
+**5 511 305 F**, argent disponible **244 127 F**, dette Barka **743 060 F**,
+dette Fodié **956 400 F** ; résultats après charges août **−718 400 F**,
+septembre **−911 155 F**, octobre **−779 678 F** ; salaires d'octobre : versé
+**160 000 F**, reste **50 000 F**, non attribué **15 000 F** ; viande &
+poisson : **57 achats, 391,5 kg, 1 668 500 F**, CA théorique **1 779 167 F**.
 
-Le classeur affiche 18 000 F de moins en dépenses (et 18 000 F de plus en
-argent disponible), parce que le montant « 18000F » de la Pomme de terre est
-tapé en texte. C'est l'app qui a raison.
+Attention : Excel ignore un montant tapé en texte (« 18000F ») ; l'app, non.
 
 Pour charger l'historique : **Plus → Importer le fichier Excel** (ou le
 bouton « Importer mon fichier Excel » du Résumé quand l'app est vide).
@@ -162,7 +197,7 @@ elles sont dans `.gitignore`.
 
 ```json
 {
-  "format": "fasoresto", "version": 1,
+  "format": "fasoresto", "version": 2,
   "parametres": {"loyerMensuel": 120000, "salairesMensuels": 150000},
   "journees": [{"date": "2026-09-07", "matin": 48000, "midi": 9000, "soir": 31050,
                 "pate": 9500, "autre": 0, "argentCompte": null,
@@ -177,6 +212,12 @@ elles sont dans `.gitignore`.
                       "montant": 150000, "payeAvec": "Trésorerie", "remarque": ""}]
 }
 ```
+
+La version 2 ajoute `produits` (id, rubrique, nom, prix, coutMatiere,
+ingredient, remarque), `ingredients` (nom, prixKg), `employes` (id, nom,
+poste, salaireMensuel, jours : liste de dates) et `hypothesesViande`
+(type → prixMorceau, morceauxParKg). Les sauvegardes version 1 se lisent
+toujours.
 
 Les listes utilisent les **libellés** affichés (« Caisse », « Pâté »…). Un
 fichier sans `id` (venant de l'Excel) est accepté : des identifiants sont
@@ -210,8 +251,9 @@ lecture des anciennes sauvegardes.
 
 ## Suite possible (par ordre d'utilité)
 
-1. **Menu et prix des plats** : saisir « 3 riz mafé + 2 fonio » au lieu d'un
-   total par service, et savoir quels plats se vendent.
+1. **Vente au plat** : le menu existe déjà ; saisir « 3 riz sauce + 2 fonio »
+   dans la caisse au lieu d'un total par service, et savoir quels plats se
+   vendent.
 2. **Plusieurs téléphones** (caissier + gérant) avec synchronisation
    (Firebase ou Supabase). Il suffira de remplacer `donnees/depot.dart`.
 3. **Stock** de viande, gaz et charbon.

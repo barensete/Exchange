@@ -7,7 +7,8 @@ import '../modele/modeles.dart';
 /// `outils/excel_vers_json.py` pour reprendre l'historique du classeur Excel,
 /// et le fichier où l'application garde ses données sur le téléphone.
 class Sauvegarde {
-  static const version = 1;
+  /// 2 : menu, ingrédients, employés (pointage) et hypothèses viande.
+  static const version = 2;
 
   static String exporter(Donnees d) => const JsonEncoder.withIndent(' ').convert({
     'format': 'fasoresto',
@@ -67,6 +68,35 @@ class Sauvegarde {
           'remarque': r.remarque,
         },
     ],
+    'produits': [
+      for (final p in d.produits)
+        {
+          'id': p.id,
+          'rubrique': p.rubrique,
+          'nom': p.nom,
+          'prix': p.prix,
+          'coutMatiere': p.coutMatiere,
+          'ingredient': p.ingredient,
+          'remarque': p.remarque,
+        },
+    ],
+    'ingredients': [
+      for (final i in d.ingredients) {'nom': i.nom, 'prixKg': i.prixKg},
+    ],
+    'employes': [
+      for (final e in d.employes)
+        {
+          'id': e.id,
+          'nom': e.nom,
+          'poste': e.poste,
+          'salaireMensuel': e.salaireMensuel,
+          'jours': [for (final j in e.jours) dateIso(j)],
+        },
+    ],
+    'hypothesesViande': {
+      for (final h in d.hypothesesViande.entries)
+        h.key: {'prixMorceau': h.value.prixMorceau, 'morceauxParKg': h.value.morceauxParKg},
+    },
   });
 
   static Donnees importer(String texte) {
@@ -128,6 +158,32 @@ class Sauvegarde {
             remarque: _texte(m['remarque']),
           ),
     ];
+    final produits = [
+      for (final m in _liste(racine['produits']))
+        Produit(
+          id: id(m),
+          rubrique: _texte(m['rubrique']),
+          nom: _texte(m['nom']),
+          prix: _entier(m['prix']),
+          coutMatiere: _entier(m['coutMatiere']),
+          ingredient: _texte(m['ingredient']),
+          remarque: _texte(m['remarque']),
+        ),
+    ];
+    final employes = [
+      for (final m in _liste(racine['employes']))
+        Employe(
+          id: id(m),
+          nom: _texte(m['nom']),
+          poste: _texte(m['poste']),
+          salaireMensuel: _entier(m['salaireMensuel']),
+          jours: [
+            for (final j in (m['jours'] is List ? m['jours'] as List : const []))
+              if (lireDateIso(j) != null) lireDateIso(j)!,
+          ],
+        ),
+    ];
+    final hypotheses = racine['hypothesesViande'] is Map ? racine['hypothesesViande'] as Map : const {};
     int attribuer(int v) => v != 0 ? v : prochainId++;
 
     return Donnees(
@@ -175,8 +231,25 @@ class Sauvegarde {
             remarque: r.remarque,
           ),
       ],
+      produits: [for (final p in produits) p.copier(id: attribuer(p.id))],
+      ingredients: [
+        for (final m in _liste(racine['ingredients']))
+          if (_entier(m['prixKg']) != null) Ingredient(nom: _texte(m['nom']), prixKg: _entier(m['prixKg'])!),
+      ],
+      employes: [for (final e in employes) e.copier(id: attribuer(e.id))],
+      hypothesesViande: {
+        for (final h in hypotheses.entries)
+          if (h.value is Map)
+            h.key.toString(): HypotheseViande(
+              prixMorceau: _decimal((h.value as Map)['prixMorceau']),
+              morceauxParKg: _decimal((h.value as Map)['morceauxParKg']),
+            ),
+      },
     );
   }
+
+  static double? _decimal(Object? v) =>
+      v is num ? v.toDouble() : (v is String ? double.tryParse(v.replaceAll(',', '.')) : null);
 
   static List<Map> _liste(Object? v) => v is List ? v.whereType<Map>().toList() : const [];
 

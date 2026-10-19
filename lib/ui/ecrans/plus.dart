@@ -11,6 +11,9 @@ import '../../io/import_excel.dart';
 import '../../io/sauvegarde.dart';
 import '../../modele/modeles.dart';
 import '../composants.dart';
+import 'menu.dart';
+import 'personnel.dart';
+import 'viande.dart';
 
 /// Reprend l'historique du classeur Excel « Comptabilité Faso Resto » (.xlsx).
 Future<void> importerExcel(BuildContext context) =>
@@ -86,7 +89,7 @@ class EcranPlus extends StatelessWidget {
         _Entree(
           Icons.trending_up,
           'Bilans',
-          'Par jour, par semaine, par mois',
+          'Par mois, semaine, jour, et analyse viande & poisson',
           () => _ouvrir(context, const EcranBilans()),
         ),
         _Entree(
@@ -94,6 +97,18 @@ class EcranPlus extends StatelessWidget {
           'Remboursements',
           'Argent rendu à Barka et Fodié',
           () => _ouvrir(context, const EcranRemboursements()),
+        ),
+        _Entree(
+          Icons.restaurant_menu,
+          'Menu & prix de vente',
+          'Plats, prix, coût matière visé à 30 %',
+          () => _ouvrir(context, const EcranMenu()),
+        ),
+        _Entree(
+          Icons.badge,
+          'Personnel & salaires',
+          'Employés, pointage, versé et reste à verser',
+          () => _ouvrir(context, const EcranPersonnel()),
         ),
         _Entree(
           Icons.settings,
@@ -298,7 +313,7 @@ class EcranBilans extends StatelessWidget {
     final jours = c.bilansParJour();
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Bilans'),
@@ -307,6 +322,7 @@ class EcranBilans extends StatelessWidget {
               Tab(text: 'Mois'),
               Tab(text: 'Semaines'),
               Tab(text: 'Jours'),
+              Tab(text: 'Viande'),
             ],
           ),
         ),
@@ -407,6 +423,7 @@ class EcranBilans extends StatelessWidget {
                 );
               },
             ),
+            const OngletViande(),
           ],
         ),
       ),

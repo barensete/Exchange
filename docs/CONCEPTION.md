@@ -97,16 +97,10 @@ toucher aux calculs ni aux écrans.
 
 ## 5. Mettre vos données Excel dans l'application
 
-```bash
-pip install openpyxl
-python3 outils/excel_vers_json.py Comptabilite_faso_resto.xlsx fasoresto.json
-```
-
-Copiez ensuite `fasoresto.json` sur le téléphone (WhatsApp, Drive, câble
-USB), puis dans l'application : **Plus → Importer une sauvegarde**.
-
-Corrigez d'abord les trois dates du 26/07 dans l'Excel, ou modifiez-les
-ensuite dans l'application.
+Copiez le classeur (.xlsx) sur le téléphone, puis dans l'application :
+**Plus → Importer le fichier Excel**. Tous les onglets de saisie sont repris :
+Recettes, Dépenses, Impayés, Remboursements, loyer et salaires, Prix de vente,
+Salaire (employés et pointage) et les hypothèses de l'analyse viande.
 
 ## 6. Obtenir et installer l'APK
 

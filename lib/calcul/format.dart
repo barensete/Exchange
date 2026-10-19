@@ -41,3 +41,13 @@ String nomMois(DateTime d) {
 }
 
 String enPourcent(double? v) => v == null ? '—' : '${(v * 100).toStringAsFixed(1).replaceAll('.', ',')} %';
+
+/// 138.0 → « 138 kg » ; 60.5 → « 60,5 kg ».
+String enKg(double? kg) {
+  if (kg == null) return '—';
+  final t = kg == kg.roundToDouble() ? kg.round().toString() : kg.toStringAsFixed(1).replaceAll('.', ',');
+  return '$t kg';
+}
+
+/// 4211.49 → « 4 211 F » (montant décimal arrondi au franc).
+String enFcfaDecimal(double? v) => v == null ? '—' : enFcfa(v.round());
