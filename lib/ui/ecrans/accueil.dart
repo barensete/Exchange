@@ -29,6 +29,23 @@ class EcranAccueil extends StatelessWidget {
       children: [
         const TitreOnglet('FasoResto'),
         const SizedBox(height: 12),
+        if (depot.donnees.journees.isEmpty && depot.donnees.depenses.isEmpty) ...[
+          Section(
+            titre: 'Bienvenue',
+            enfants: [
+              const Text(
+                "Aucune donnée pour l'instant. Vous pouvez reprendre tout l'historique de votre "
+                'classeur Excel « Comptabilité Faso Resto » en une fois.',
+              ),
+              FilledButton.icon(
+                onPressed: () => importerExcel(context),
+                icon: const Icon(Icons.grid_on),
+                label: const Text('Importer mon fichier Excel'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         Section(
           titre: "Aujourd'hui",
           enfants: [
@@ -53,6 +70,10 @@ class EcranAccueil extends StatelessWidget {
           enfants: [
             LigneMontant('Total recette (avant sorties)', r.totalRecette, fort: true),
             LigneMontant('Impayés clients à recevoir', r.impayesARecevoir, detail: 'Vendu à crédit, pas encore reçu'),
+            if (depot.donnees.journees.length >= 2) ...[
+              Text('Recette des 14 dernières journées', style: petit),
+              GraphiqueRecettes(depot.compta.dernieresJournees(14)),
+            ],
           ],
         ),
         const SizedBox(height: 12),
@@ -98,6 +119,11 @@ class EcranAccueil extends StatelessWidget {
           enfants: [
             LigneMontant('Écart de caisse cumulé', r.ecartCumule, couleur: couleurEcart(context, r.ecartCumule)),
             Text('Jours de caisse comptée : ${r.joursCaisseComptee} / ${depot.donnees.journees.length}'),
+            if (r.depensesDateSuspecte > 0)
+              Text(
+                '${r.depensesDateSuspecte} dépense(s) avec une date suspecte (avant l\'ouverture ou dans le futur)',
+                style: const TextStyle(color: orange),
+              ),
             if (r.depensesACorriger > 0)
               Text('${r.depensesACorriger} dépense(s) incomplète(s) à corriger', style: const TextStyle(color: orange)),
             if (r.impayesACorriger > 0)

@@ -7,29 +7,23 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../calcul/format.dart';
 import '../../donnees/depot.dart';
+import '../../io/import_excel.dart';
 import '../../io/sauvegarde.dart';
 import '../../modele/modeles.dart';
 import '../composants.dart';
 
-class EcranPlus extends StatelessWidget {
-  const EcranPlus({super.key});
+/// Reprend l'historique du classeur Excel « Comptabilité Faso Resto » (.xlsx).
+Future<void> importerExcel(BuildContext context) =>
+    _importer(context, (f) async => ImportExcel.lire(await f.xFile.readAsBytes()));
 
-  void _ouvrir(BuildContext context, Widget ecran) => Navigator.push(context, MaterialPageRoute(builder: (_) => ecran));
+/// Recharge une sauvegarde .json faite avec l'application.
+Future<void> importerSauvegarde(BuildContext context) =>
+    _importer(context, (f) async => Sauvegarde.importer(await f.xFile.readAsString()));
 
-  /// Écrit le fichier puis ouvre le menu Partager (WhatsApp, Drive, e-mail…).
-  Future<void> _partager(BuildContext context, String nom, String contenu) async {
-    try {
-      final dossier = await getTemporaryDirectory();
-      final fichier = File('${dossier.path}/$nom');
-      await fichier.writeAsString(contenu, flush: true);
-      await SharePlus.instance.share(ShareParams(files: [XFile(fichier.path)], title: nom));
-    } catch (e) {
-      if (context.mounted) message(context, 'Erreur : $e');
-    }
-  }
-
-  Future<void> _importer(BuildContext context) async {
-    final depot = DepotScope.de(context);
+Future<void> _importer(BuildContext context, Future<Donnees> Function(PlatformFile) lire) async {
+  final depot = DepotScope.de(context);
+  final vide = depot.donnees.journees.isEmpty && depot.donnees.depenses.isEmpty;
+  if (!vide) {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -45,14 +39,38 @@ class EcranPlus extends StatelessWidget {
       ),
     );
     if (ok != true) return;
+  }
+  try {
+    final fichier = await FilePicker.pickFile();
+    if (fichier == null) return;
+    final d = await lire(fichier);
+    await depot.remplacerTout(d);
+    if (context.mounted) {
+      message(
+        context,
+        '${d.journees.length} journées, ${d.depenses.length} dépenses, ${d.impayes.length} impayés '
+        'et ${d.remboursements.length} remboursements importés',
+      );
+    }
+  } catch (e) {
+    if (context.mounted) message(context, 'Import impossible : $e');
+  }
+}
+
+class EcranPlus extends StatelessWidget {
+  const EcranPlus({super.key});
+
+  void _ouvrir(BuildContext context, Widget ecran) => Navigator.push(context, MaterialPageRoute(builder: (_) => ecran));
+
+  /// Écrit le fichier puis ouvre le menu Partager (WhatsApp, Drive, e-mail…).
+  Future<void> _partager(BuildContext context, String nom, String contenu) async {
     try {
-      final fichier = await FilePicker.pickFile();
-      if (fichier == null) return;
-      final d = Sauvegarde.importer(await fichier.xFile.readAsString());
-      await depot.remplacerTout(d);
-      if (context.mounted) message(context, '${d.journees.length} journées et ${d.depenses.length} dépenses importées');
+      final dossier = await getTemporaryDirectory();
+      final fichier = File('${dossier.path}/$nom');
+      await fichier.writeAsString(contenu, flush: true);
+      await SharePlus.instance.share(ShareParams(files: [XFile(fichier.path)], title: nom));
     } catch (e) {
-      if (context.mounted) message(context, 'Import impossible : $e');
+      if (context.mounted) message(context, 'Erreur : $e');
     }
   }
 
@@ -108,8 +126,14 @@ class EcranPlus extends StatelessWidget {
         _Entree(
           Icons.download,
           'Importer une sauvegarde',
-          'Remplace toutes les données du téléphone',
-          () => _importer(context),
+          'Fichier .json : remplace toutes les données du téléphone',
+          () => importerSauvegarde(context),
+        ),
+        _Entree(
+          Icons.grid_on,
+          'Importer le fichier Excel',
+          '« Comptabilité Faso Resto » (.xlsx) : remplace toutes les données',
+          () => importerExcel(context),
         ),
       ],
     );
@@ -318,6 +342,22 @@ class EcranBilans extends StatelessWidget {
                       m.resultatHorsMateriel,
                       couleur: couleurResultat(context, m.resultatHorsMateriel),
                     ),
+                    if (m.joursOuverts > 0) ...[
+                      const Divider(),
+                      LigneMontant(
+                        'Recette moyenne par jour',
+                        m.recetteMoyenneParJour,
+                        detail: '${m.joursOuverts} journée(s) de caisse saisie(s)',
+                      ),
+                      Text('Recette par service', style: Theme.of(context).textTheme.titleSmall),
+                      for (final e in m.recetteParService.entries)
+                        if (e.value > 0) LigneJauge(e.key.libelle, e.value, m.recette),
+                    ],
+                    if (m.depensesParCategorie.isNotEmpty) ...[
+                      const Divider(),
+                      Text('Dépenses par catégorie', style: Theme.of(context).textTheme.titleSmall),
+                      for (final e in m.depensesParCategorie.entries) LigneJauge(e.key.libelle, e.value, m.depenses),
+                    ],
                   ],
                 );
               },

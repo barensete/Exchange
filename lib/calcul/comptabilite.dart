@@ -29,6 +29,7 @@ class Resume {
     required this.joursCaisseComptee,
     required this.depensesACorriger,
     required this.impayesACorriger,
+    required this.depensesDateSuspecte,
   });
 
   final int totalRecette;
@@ -42,6 +43,9 @@ class Resume {
   final int joursCaisseComptee;
   final int depensesACorriger;
   final int impayesACorriger;
+
+  /// Dépenses datées bien avant l'ouverture ou dans le futur (faute de frappe probable).
+  final int depensesDateSuspecte;
 
   int get totalDettes => detteParAssocie.values.fold(0, (a, b) => a + b) + dettePartagee;
 }
@@ -79,11 +83,25 @@ class BilanMois {
     required this.versementsSalaires,
     required this.loyer,
     required this.salaires,
+    required this.joursOuverts,
+    required this.recetteParService,
+    required this.depensesParCategorie,
   });
 
   /// Premier jour du mois.
   final DateTime mois;
   final int recette, depenses, depensesMateriel, versementsSalaires, loyer, salaires;
+
+  /// Nombre de journées de caisse saisies dans le mois.
+  final int joursOuverts;
+
+  /// Recette du mois par service (Matin, Midi, Soir, Pâté, Autre).
+  final Map<Service, int> recetteParService;
+
+  /// Dépenses du mois par catégorie, de la plus grosse à la plus petite.
+  final Map<Categorie, int> depensesParCategorie;
+
+  int? get recetteMoyenneParJour => joursOuverts == 0 ? null : (recette / joursOuverts).round();
 
   /// Recette − (dépenses sans les versements de salaire déjà saisis) − loyer − salaires.
   int get resultatApresCharges => recette - (depenses - versementsSalaires) - loyer - salaires;
@@ -97,10 +115,29 @@ DateTime lundiDe(DateTime d) => DateTime(d.year, d.month, d.day - (d.weekday - D
 /// Reproduit fidèlement les formules du classeur « Comptabilité Faso Resto ».
 /// Aucune dépendance Flutter : testable avec `flutter test`.
 class Comptabilite {
-  Comptabilite(this.d) : _depenses = d.depenses.where((x) => x.montant != null).toList();
+  Comptabilite(this.d, {DateTime? aujourdhui})
+    : _depenses = d.depenses.where((x) => x.montant != null).toList(),
+      _aujourdhui = jourSeul(aujourdhui ?? DateTime.now());
 
   final Donnees d;
   final List<Depense> _depenses;
+  final DateTime _aujourdhui;
+
+  /// Date d'ouverture : la première journée de caisse saisie.
+  DateTime? get ouverture =>
+      d.journees.isEmpty ? null : d.journees.map((j) => j.date).reduce((a, b) => a.isBefore(b) ? a : b);
+
+  /// Une dépense datée plus de 7 jours avant l'ouverture, ou dans le futur,
+  /// vient sans doute d'une faute de frappe (ex. 26/07 au lieu du 26/09).
+  bool dateSuspecte(Depense x) {
+    final date = x.date;
+    if (date == null) return false;
+    final o = ouverture;
+    return date.isAfter(_aujourdhui) || (o != null && date.isBefore(DateTime(o.year, o.month, o.day - 7)));
+  }
+
+  /// Dépense à corriger : incomplète ou datée de façon suspecte.
+  bool aCorriger(Depense x) => x.estIncomplete || dateSuspecte(x);
 
   Iterable<Depense> _du(DateTime date) => _depenses.where((x) => memeJour(x.date, date));
 
@@ -135,7 +172,14 @@ class Comptabilite {
       joursCaisseComptee: d.journees.where((j) => j.argentCompte != null).length,
       depensesACorriger: d.depenses.where((x) => x.estIncomplete).length,
       impayesACorriger: d.impayes.where((i) => i.estIncomplet).length,
+      depensesDateSuspecte: d.depenses.where(dateSuspecte).length,
     );
+  }
+
+  /// Les [n] dernières journées saisies, de la plus ancienne à la plus récente (pour le graphique).
+  List<JourneeCalculee> dernieresJournees(int n) {
+    final toutes = journees();
+    return toutes.sublist(toutes.length > n ? toutes.length - n : 0);
   }
 
   BilanJour bilanJour(DateTime date) {
@@ -175,21 +219,34 @@ class Comptabilite {
     );
   }).toList();
 
-  List<BilanMois> bilansParMois() =>
-      _distinctesDecroissantes(_dates().map((x) => DateTime(x.year, x.month))).map((mois) {
-        bool dedans(DateTime? x) => x != null && x.year == mois.year && x.month == mois.month;
-        final deps = _depenses.where((x) => dedans(x.date)).toList();
-        final recette = d.journees.where((j) => dedans(j.date)).fold(0, (s, j) => s + j.totalAvantSorties);
-        // Comme dans le classeur : loyer et salaires seulement pour les mois qui ont des recettes.
-        final actif = recette != 0;
-        return BilanMois(
-          mois: mois,
-          recette: recette,
-          depenses: _somme(deps),
-          depensesMateriel: _somme(deps.where((x) => x.categorie == Categorie.materiel)),
-          versementsSalaires: _somme(deps.where((x) => x.categorie == Categorie.personnel)),
-          loyer: actif ? d.parametres.loyerMensuel : 0,
-          salaires: actif ? d.parametres.salairesMensuels : 0,
-        );
-      }).toList();
+  List<BilanMois> bilansParMois() => _distinctesDecroissantes(_dates().map((x) => DateTime(x.year, x.month))).map((
+    mois,
+  ) {
+    bool dedans(DateTime? x) => x != null && x.year == mois.year && x.month == mois.month;
+    final deps = _depenses.where((x) => dedans(x.date)).toList();
+    final jours = d.journees.where((j) => dedans(j.date)).toList();
+    final recette = jours.fold(0, (s, j) => s + j.totalAvantSorties);
+    // Comme dans le classeur : loyer et salaires seulement pour les mois qui ont des recettes.
+    final actif = recette != 0;
+    final parCategorie = {for (final c in Categorie.values) c: _somme(deps.where((x) => x.categorie == c))}
+      ..removeWhere((_, v) => v == 0);
+    return BilanMois(
+      mois: mois,
+      recette: recette,
+      depenses: _somme(deps),
+      depensesMateriel: _somme(deps.where((x) => x.categorie == Categorie.materiel)),
+      versementsSalaires: _somme(deps.where((x) => x.categorie == Categorie.personnel)),
+      loyer: actif ? d.parametres.loyerMensuel : 0,
+      salaires: actif ? d.parametres.salairesMensuels : 0,
+      joursOuverts: jours.length,
+      recetteParService: {
+        Service.matin: jours.fold(0, (s, j) => s + j.matin),
+        Service.midi: jours.fold(0, (s, j) => s + j.midi),
+        Service.soir: jours.fold(0, (s, j) => s + j.soir),
+        Service.pate: jours.fold(0, (s, j) => s + j.pate),
+        Service.autre: jours.fold(0, (s, j) => s + j.autre),
+      },
+      depensesParCategorie: Map.fromEntries(parCategorie.entries.toList()..sort((a, b) => b.value.compareTo(a.value))),
+    );
+  }).toList();
 }

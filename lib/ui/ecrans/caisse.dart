@@ -90,8 +90,15 @@ class _EcranEditionJourneeState extends State<EcranEditionJournee> {
     _existante = d == null
         ? null
         : DepotScope.de(context).donnees.journees.where((j) => memeJour(j.date, d)).firstOrNull;
-    _j = _existante ?? Journee(date: d ?? DateTime.now());
+    _j = _existante ?? _nouvelle(d ?? DateTime.now());
     _pret = true;
+  }
+
+  /// Nouvelle journée : le fond de caisse du début reprend celui de la fin de la veille.
+  Journee _nouvelle(DateTime date) {
+    final avant = DepotScope.de(context).donnees.journees.where((j) => j.date.isBefore(jourSeul(date))).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    return Journee(date: date, fondDebut: avant.isEmpty ? null : avant.first.fondFin);
   }
 
   @override

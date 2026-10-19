@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../calcul/comptabilite.dart';
 import '../calcul/format.dart';
 
 const vert = Color(0xFF009E49);
@@ -376,3 +377,100 @@ class TitreOnglet extends StatelessWidget {
 
 void message(BuildContext context, String texte) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texte)));
+
+/// Petit graphique en barres : recette avant sorties de chaque journée.
+/// Barre la plus haute = meilleure journée ; le jour du mois est écrit dessous.
+class GraphiqueRecettes extends StatelessWidget {
+  const GraphiqueRecettes(this.jours, {super.key, this.hauteur = 110});
+
+  final List<JourneeCalculee> jours;
+  final double hauteur;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final max = jours.fold<int>(0, (m, j) => j.journee.totalAvantSorties > m ? j.journee.totalAvantSorties : m);
+    final meilleure = jours.isEmpty
+        ? null
+        : jours.reduce((a, b) => a.journee.totalAvantSorties >= b.journee.totalAvantSorties ? a : b);
+    final petit = theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: hauteur,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final j in jours)
+                Expanded(
+                  child: Tooltip(
+                    message: '${enTexte(j.journee.date)} : ${enFcfa(j.journee.totalAvantSorties)}',
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      height: max == 0 ? 0 : hauteur * j.journee.totalAvantSorties / max,
+                      decoration: BoxDecoration(
+                        color: j == meilleure
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.primary.withValues(alpha: 0.45),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            for (final j in jours)
+              Expanded(
+                child: Text('${j.journee.date.day}', textAlign: TextAlign.center, style: petit),
+              ),
+          ],
+        ),
+        if (meilleure != null)
+          Text(
+            'Meilleure journée : ${enTexte(meilleure.journee.date)} (${enFcfa(meilleure.journee.totalAvantSorties)})',
+            style: petit,
+          ),
+      ],
+    );
+  }
+}
+
+/// Barre horizontale « libellé ……… montant » avec une jauge proportionnelle.
+class LigneJauge extends StatelessWidget {
+  const LigneJauge(this.libelle, this.montant, this.total, {super.key});
+
+  final String libelle;
+  final int montant;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final part = total == 0 ? 0.0 : montant / total;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(libelle)),
+            Text('${enFcfa(montant)} · ${enPourcent(part)}'),
+          ],
+        ),
+        const SizedBox(height: 2),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            value: part,
+            minHeight: 6,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          ),
+        ),
+      ],
+    );
+  }
+}

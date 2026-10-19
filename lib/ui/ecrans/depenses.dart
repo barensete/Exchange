@@ -16,13 +16,27 @@ class EcranDepenses extends StatefulWidget {
 class _EcranDepensesState extends State<EcranDepenses> {
   SourcePaiement? _filtre;
   bool _incompletes = false;
+  String _recherche = '';
+
+  bool _correspond(Depense x) {
+    final r = _recherche.trim().toLowerCase();
+    if (r.isEmpty) return true;
+    return [
+      x.article,
+      x.fournisseur,
+      x.remarque,
+      x.categorie?.libelle ?? '',
+    ].any((champ) => champ.toLowerCase().contains(r));
+  }
 
   @override
   Widget build(BuildContext context) {
     final depot = DepotScope.de(context);
+    final compta = depot.compta;
     final liste = depot.donnees.depenses
         .where((x) => _filtre == null || x.payeAvec == _filtre)
-        .where((x) => !_incompletes || x.estIncomplete)
+        .where((x) => !_incompletes || compta.aCorriger(x))
+        .where(_correspond)
         .toList();
     // Regroupe par jour, du plus récent au plus ancien ; « sans date » en premier.
     final parJour = <String, List<Depense>>{};
@@ -41,6 +55,16 @@ class _EcranDepensesState extends State<EcranDepenses> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
           const TitreOnglet('Dépenses'),
+          const SizedBox(height: 8),
+          TextField(
+            decoration: const InputDecoration(
+              hintText: 'Rechercher un article, un fournisseur…',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: (t) => setState(() => _recherche = t),
+          ),
           const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -95,7 +119,7 @@ class _EcranDepensesState extends State<EcranDepenses> {
                 ],
               ),
             ),
-            for (final x in parJour[cle]!) _CarteDepense(x),
+            for (final x in parJour[cle]!) _CarteDepense(x, aCorriger: compta.aCorriger(x)),
           ],
         ],
       ),
@@ -104,12 +128,15 @@ class _EcranDepensesState extends State<EcranDepenses> {
 }
 
 class _CarteDepense extends StatelessWidget {
-  const _CarteDepense(this.d);
+  const _CarteDepense(this.d, {required this.aCorriger});
   final Depense d;
+
+  /// Incomplète ou datée de façon suspecte : affichée en orange.
+  final bool aCorriger;
 
   @override
   Widget build(BuildContext context) => Card(
-    color: d.estIncomplete ? orange.withValues(alpha: 0.18) : null,
+    color: aCorriger ? orange.withValues(alpha: 0.18) : null,
     child: ListTile(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EcranEditionDepense(existante: d))),
       title: Row(
@@ -182,6 +209,11 @@ class _EcranEditionDepenseState extends State<EcranEditionDepense> {
           date: _d.date,
           onChange: (v) => setState(() => _d = _d.copier(date: v)),
         ),
+        if (depot.compta.dateSuspecte(_d))
+          Text(
+            "Date suspecte : bien avant l'ouverture ou dans le futur. Vérifiez le mois et l'année.",
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         ChampSuggestions(
           libelle: 'Article',
           valeur: _d.article,

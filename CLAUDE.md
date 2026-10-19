@@ -45,6 +45,7 @@ lib/
   calcul/comptabilite.dart   TOUTES les formules (Résumé, caisse du jour, bilans)
   calcul/format.dart         enFcfa(), enTexte(date), lireMontant(), nomMois()
   io/sauvegarde.dart         Sauvegarde (JSON) et ExportCsv (Excel, séparateur « ; »)
+  io/import_excel.dart       ImportExcel.lire(octets) : lit directement le classeur .xlsx
   donnees/depot.dart         Depot (ChangeNotifier) : données en mémoire + fichier JSON
                              sur le téléphone ; DepotScope.de(context) pour y accéder
   ui/app.dart                MaterialApp (thème vert, français) + 5 onglets du bas
@@ -102,6 +103,10 @@ docs/CONCEPTION.md           analyse du classeur, choix techniques, suite possib
   Personnel / Salaires, Petites dépenses / non identifiées, Produit d'entretien.
 - Une dépense est **incomplète** (en orange) s'il manque la date, le montant,
   « payé avec » ou la catégorie.
+- Une dépense a une **date suspecte** (aussi en orange, filtre « À corriger »)
+  si elle est datée plus de 7 jours avant l'ouverture (première journée de
+  caisse) ou dans le futur. Exemple réel : 3 dépenses datées du 26/07 au lieu
+  du 26/09.
 - Est compté comme **viande** tout article dont le nom commence par
   « Viande » ou « Foie ».
 
@@ -125,7 +130,9 @@ docs/CONCEPTION.md           analyse du classeur, choix techniques, suite possib
   « Personnel / Salaires ») − loyer − salaires. Loyer et salaires
   (Paramètres, par défaut 120 000 F et 150 000 F) ne comptent **que pour les
   mois qui ont des recettes**. Résultat hors matériel = résultat après
-  charges + dépenses « Matériel & équipement ».
+  charges + dépenses « Matériel & équipement ». Le mois affiche aussi la
+  recette moyenne par jour de caisse saisi, la recette par service et les
+  dépenses par catégorie (de la plus grosse à la plus petite).
 
 ### Impayés
 - Un impayé a une liste de **règlements** (date + montant). Reste dû =
@@ -144,6 +151,9 @@ disponible **582 230 F**, recette de septembre **1 794 225 F**.
 Le classeur affiche 18 000 F de moins en dépenses (et 18 000 F de plus en
 argent disponible), parce que le montant « 18000F » de la Pomme de terre est
 tapé en texte. C'est l'app qui a raison.
+
+Pour charger l'historique : **Plus → Importer le fichier Excel** (ou le
+bouton « Importer mon fichier Excel » du Résumé quand l'app est vide).
 
 Ne jamais mettre les vraies données (`*.xlsx`, `fasoresto*.json`) dans Git :
 elles sont dans `.gitignore`.

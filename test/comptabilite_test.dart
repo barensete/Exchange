@@ -141,4 +141,37 @@ void main() {
     final lignes = csv.substring(1).trimRight().split('\r\n');
     expect(lignes[1], '2026-09-01;"Sel; fin";;500;Caisse;Achats alimentaires;;');
   });
+
+  test('dates suspectes (faute de frappe sur le mois, ou date future)', () {
+    final avecErreurs = donnees.copier(
+      depenses: [
+        ...donnees.depenses,
+        dep(DateTime(2026, 7, 26), 18000, SourcePaiement.tresorerie), // 26/07 au lieu du 26/09
+        dep(DateTime(2026, 9, 2), 500, SourcePaiement.caisse), // 5 jours avant l'ouverture : normal
+        dep(DateTime(2026, 12, 1), 700, SourcePaiement.caisse), // dans le futur
+      ],
+    );
+    final c = Comptabilite(avecErreurs, aujourdhui: DateTime(2026, 10, 1));
+    expect(c.ouverture, j1);
+    expect(c.resume().depensesDateSuspecte, 2);
+    expect(c.aCorriger(avecErreurs.depenses.last), isTrue);
+    expect(c.aCorriger(avecErreurs.depenses[avecErreurs.depenses.length - 2]), isFalse);
+  });
+
+  test('détail du mois : services, catégories, moyenne par jour', () {
+    final mois = compta.bilansParMois().single;
+    expect(mois.joursOuverts, 2);
+    expect(mois.recetteMoyenneParJour, 96425);
+    expect(mois.recetteParService[Service.matin], 48000 + 32500);
+    expect(mois.recetteParService[Service.pate], 9500 + 5800);
+    // Triées de la plus grosse à la plus petite, sans les catégories vides.
+    expect(mois.depensesParCategorie.keys.take(2), [Categorie.achatsAlimentaires, Categorie.materiel]);
+    expect(mois.depensesParCategorie[Categorie.achatsAlimentaires], 4000 + 2000 + 30000 + 10000 + 6000);
+    expect(mois.depensesParCategorie.containsKey(Categorie.transport), isFalse);
+  });
+
+  test('dernières journées pour le graphique', () {
+    expect(compta.dernieresJournees(1).single.journee.date, j2);
+    expect(compta.dernieresJournees(10).length, 2);
+  });
 }

@@ -61,6 +61,7 @@ lib/
   calcul/comptabilite.dart  les formules du classeur (Résumé, caisse, bilans)
   calcul/format.dart      affichage des montants (12 500 F) et des dates
   io/sauvegarde.dart      sauvegarde JSON et export CSV pour Excel
+  io/import_excel.dart    lecture directe du classeur Excel (.xlsx)
   donnees/depot.dart      garde les données et les enregistre sur le téléphone
   ui/app.dart             thème et onglets du bas
   ui/composants.dart      champs de saisie et cartes réutilisables
@@ -71,10 +72,10 @@ outils/excel_vers_json.py reprise de l'historique Excel
 
 ## Reprendre l'historique Excel
 
-```bash
-pip install openpyxl
-python outils/excel_vers_json.py Comptabilite_faso_resto.xlsx fasoresto.json
-```
+Copiez le fichier `Comptabilite_faso_resto.xlsx` sur le téléphone (WhatsApp,
+Drive, câble USB), puis dans l'application : **Plus → Importer le fichier
+Excel**. Quand l'application est vide, le Résumé propose aussi un bouton
+**Importer mon fichier Excel**.
 
-Envoyez `fasoresto.json` sur le téléphone (WhatsApp, Drive, câble USB), puis
-dans l'application : **Plus → Importer une sauvegarde**.
+Sur le PC, `outils/excel_vers_json.py` produit la même chose sous forme de
+sauvegarde `.json` (Plus → Importer une sauvegarde).
